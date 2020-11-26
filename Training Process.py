@@ -100,60 +100,64 @@ print('Testing has %d samples of class 0 and %d samples of class 1' % (np.unique
 
 # ### Network
 
-# In[4]:
+# In[66]:
 
 
 class Net(nn.Module):
     def __init__(self, mfcc_total):
         super(Net, self).__init__()
-        self.conv_mfcc = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (mfcc_total,1), stride = 1)
-        self.conv_delta = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (mfcc_total,1), stride = 1)
-        self.conv_delta_delta = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (mfcc_total,1), stride = 1)
+        self.conv_mfcc = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (mfcc_total,10), stride = 5)
+        self.conv_delta = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (mfcc_total,10), stride = 5)
+        self.conv_delta_delta = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (mfcc_total,10), stride = 5)
         
-        ###### DECLARE NETWORK COMPONENTS HERE ######
-        
+        self.conv_1 = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (3,5), stride = 2)
+        self.conv_2 = nn.Conv2d(in_channels = 1, out_channels = 1, kernel_size = (3,5), stride = 1)
+        self.fc1 = nn.Linear(28, 10)
+        self.fc2 = nn.Linear(10, 1)
+        self.fc3 = nn.Sigmoid()
         
     def forward(self, mfcc, delta, delta_delta):
+        # Compressing features into 3x300 matrix
         mfcc_features = self.conv_mfcc(mfcc)
         delta_features = self.conv_delta(delta)
         delta_delta_features = self.conv_delta_delta(delta_delta)
         features = torch.cat((mfcc_features, delta_features, delta_delta_features), 2)
-        ###### REST OF THE FORWARD FUNCTION HERE ######
         
-        
-        return 0
+        features = self.conv_1(features)
+        features = features.view(-1, 28)
+        features = self.fc1(features).squeeze(0)
+        features = self.fc2(features)
+        features = self.fc3(features)
+        return features
     
 def load_model(lr, seed, mfcc_total):
     torch.manual_seed(seed)
     model = Net(mfcc_total)
-    
-    ###### DECLARE LOSS FUNCTION & OPTIMIZER ######
-    #loss_function = 
-    #optimizer = 
-    
-    return model#, loss_function, optimizer
+    loss_function = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr = lr)
+    return model, loss_function, optimizer
 
 
 # ### Training
 
-# In[5]:
+# In[8]:
 
 
 ###### SET HYPERPARAMETERS HERE ######
-lr = 0.1
+lr = 0.01
 seed = 42
 mfcc_total = 13
 epochs = 1
 
 
-# In[6]:
+# In[62]:
 
 
 def main_test():
     torch.manual_seed(seed)
-    model = load_model(lr, seed, mfcc_total)
+    model, loss_function, optimizer = load_model(lr, seed, mfcc_total)
     for epoch in range(epochs):
-        for i in range(len(X)):
+        for i in range(len(X_train)):
             # Obtaining our mfcc, delta and delta_delta from X and converting to tensor
             mfcc = torch.from_numpy(X[i][0]).unsqueeze(0).unsqueeze(0)
             delta = torch.from_numpy(X[i][1]).unsqueeze(0).unsqueeze(0)
