@@ -49,26 +49,30 @@ def plot_wav(audio,sample_rate):
    with the specified parameters: n_mfcc = 13, 20ms fft window length, 10ms fft hop length;
    Output will be saved in the processed data folder as numpy arrays of form (mfcc, delta, delta_delta)
 '''
-for files in os.listdir('data/raw data/hyenas/'):
+
+for files in os.listdir('data/raw data9/hyenas/'):
   print(files)
-  audio,sample_rate = librosa.load('data/raw data/hyenas/'+files)
+  audio,sample_rate = librosa.load('data/raw data9/hyenas/'+files)
   #Will be computing mfcc features for each frame with length of 10ms
   n_fft = int(sample_rate*0.02)
   #hop_length = # of samples bet'n each frame
-  hop_length = n_fft//2
-  features = wav_to_mfcc(audio,sample_rate,n_fft = n_fft,hop_length=hop_length)
-  np.save('data/processed data/hyenas/'+files,features)
+  hop_length = int(n_fft//2)
+  features = wav_to_mfcc(audio,sample_rate)
+  print(features.shape)
+  np.save('data/processed data9/hyenas/'+files,features)
 print('hyenas done')
 
-for files in os.listdir('data/raw data/lions/'):
+for files in os.listdir('data/raw data9/lions/'):
   print(files)
-  audio, sample_rate = librosa.load('data/raw data/lions/' + files)
+  audio, sample_rate = librosa.load('data/raw data9/lions/' + files)
   # Will be computing mfcc features for each frame with length of 10ms
   n_fft = int(sample_rate * 0.02)
   # hop_length = # of samples bet'n each frame
-  hop_length = n_fft // 2
-  features = wav_to_mfcc(audio, sample_rate, n_fft=n_fft, hop_length=hop_length)
-  np.save('data/processed data/lions/' + files, features)
+  hop_length = int(n_fft//2)
+  features = wav_to_mfcc(audio, sample_rate)
+  np.save('data/processed data9/lions/' + files, features)
 print('Lions Done')
 
 print('Finished extracting MFCCs')
+
+
