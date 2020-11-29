@@ -17,22 +17,24 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from local_model import *
 from torch.utils import data
 
+# 0 = hyenas    1 = lions
 mfccs = []
 deltas = []
 delta_deltas = []
 label = []
 X = []
-path_hyena = 'data/processed data/hyenas/'
-path_lion = 'data/processed data/lions/'
+min_length = 430
+path_hyena = 'data/processed data9/hyenas/'
+path_lion = 'data/processed data9/lions/'
 min_shape = 1000
 
 for file in os.listdir(path_hyena):
     hyena = np.load(path_hyena + file)
     if min_shape > hyena[0].shape[1]:
         min_shape = hyena[0].shape[1]
-    mfcc = np.asarray(hyena[0][:, :300])
-    delta = np.asarray(hyena[1][:, :300])
-    delta_delta = np.asarray(hyena[2][:, :300])
+    mfcc = np.asarray(hyena[0][:, :min_length])
+    delta = np.asarray(hyena[1][:, :min_length])
+    delta_delta = np.asarray(hyena[2][:, :min_length])
     mfccs.append(mfcc)
     deltas.append(delta)
     delta_deltas.append(delta_delta)
@@ -43,9 +45,9 @@ for file in os.listdir(path_lion):
     lion = np.load(path_lion + file)
     if min_shape > lion[0].shape[1]:
         min_shape = lion[0].shape[1]
-    mfcc = np.asarray(lion[0][:, :300])
-    delta = np.asarray(lion[1][:, :300])
-    delta_delta = np.asarray(lion[2][:, :300])
+    mfcc = np.asarray(lion[0][:, :min_length])
+    delta = np.asarray(lion[1][:, :min_length])
+    delta_delta = np.asarray(lion[2][:, :min_length])
     mfccs.append(mfcc)
     deltas.append(delta)
     delta_deltas.append(delta_delta)
@@ -54,12 +56,12 @@ for file in os.listdir(path_lion):
 
 print('Minimum length all of our tensors is: %i' % (min_shape))
 
-
 split_test = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
 split_val = split_1 = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=0)
 X = np.asarray(X)
 label = np.asarray(label)
 
+print('done')
 for train_index, test_index in split_test.split(X, label):
     X_train, X_test = X[train_index], X[test_index]
     y_train, y_test = label[train_index], label[test_index]
@@ -89,8 +91,8 @@ class testingDataset(data.Dataset):
         sample_label = self.labels[index]
         return sample, sample_label
 
-seed = 42
-batch_size = 20
+seed = 1
+batch_size = 64
 def main_test():
     torch.manual_seed(seed)
     model, loss_function, optimizer = load_model(lr, seed, mfcc_total)
@@ -123,10 +125,8 @@ def main_test():
                 delta_delta = input[j][2].unsqueeze(0).unsqueeze(0)
                 prediction = model(mfcc,delta,delta_delta)
                 tmp_prediction.append(prediction)
-            print("Prediction:",tmp_prediction)
-            print("Label:",label)
-            tmp_prediction = torch.tensor(tmp_prediction,requires_grad = True)
-            loss = loss_function(input = tmp_prediction,target = label.float())
+            tmp_prediction = torch.stack(tmp_prediction)
+            loss = loss_function(input = tmp_prediction.squeeze(),target = label.float())
             loss.backward()
             optimizer.step()
 
@@ -146,17 +146,17 @@ def main_test():
                 loss = loss_function(input=tmp_prediction, target=label.float())
                 taccumloss += loss.item()
                 for i in range(len(tmp_prediction)):
-                    if tmp_prediction[i] > 0.5 and label[i] == 1:
+                    if tmp_prediction[i] >= 0.5 and label[i] == 1:
                         tcorrect += 1
-                    elif tmp_prediction[i] <= 0.5 and label[i] <= 1:
+                    elif tmp_prediction[i] < 0.5 and label[i] == 0:
                         tcorrect += 1
                 ttotal += label.float().size(0)
                 tnumberofBatches += 1
         with torch.no_grad():
+            print("in loop")
             for batch in valid_loader:
                 tmp_prediction = []
                 input, label = batch
-                optimizer.zero_grad()
                 # Obtaining our mfcc, delta and delta_delta from X and converting to tensor
                 for j in range(len(input)):
                     mfcc = input[j][0].unsqueeze(0).unsqueeze(0)
@@ -168,21 +168,23 @@ def main_test():
                 loss = loss_function(input=tmp_prediction, target=label.float())
                 vaccumloss += loss.item()
                 for i in range(len(tmp_prediction)):
-                    if tmp_prediction[i] > 0.5 and label[i] == 1:
+                    if tmp_prediction[i] >= 0.5 and label[i] == 1:
                         vcorrect += 1
-                    elif tmp_prediction[i] <= 0.5 and label[i] <= 1:
+                    elif tmp_prediction[i] < 0.5 and label[i] == 0:
                         vcorrect += 1
-                vtotal += label.float().size(0)
+                vtotal += label.size(0)
                 vnumberofBatches += 1
+                print(vnumberofBatches)
         tacc.append(tcorrect/ttotal)
         tloss.append(taccumloss/tnumberofBatches)
         vacc.append(vcorrect / vtotal)
         vloss.append(vaccumloss / vnumberofBatches)
             ###### FILL THIS OUT ######
+        #torch.save(model,'test_working.pt')
     return tloss, tacc, vloss, vacc
 
 tloss, tacc, vloss, vacc = main_test()
-epoch = range(20)
+epoch = range(50)
 plt.plot(epoch, tloss, label='Training Loss')
 print(tloss)
 print(vloss)
